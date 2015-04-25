@@ -66,15 +66,15 @@ const int posB7 = 10;
 const int posB8 = 11;
 const int posST = 12;
 const int posSL = 13;
-//Array holds locations of button status to convert to correct order for PS3
-//PS3 Order
-//1)Triangle, 2)Circle, 3)Cross, 4)Square, 5)L1, 6)R1, 7)L2, 8)R2, 9)Select, 10)L3, 11)R3, 12)Start, 13)Home
+//Array holds locations of button status to convert to correct order working with MKX on PC
+//Uses a mix of PS3 and XBOX360 Button mapping lol.  Don't ask why.
+//1)Triangle, 2)Circle, 3)Cross, 4)Square, 5)L1, 6)R1, 7)L2, 8)R2, 9)Select, 10)Start
 //Our current order has buttons wired as 1234, 5678
 //We need that to match Square Triangle R1 L1, Cross Circle R2 L2
 //4 1 6 5
 //3 2 8 7
 //12 9
-const int orderPS3[10] = {4,1,6,5,3,2,8,7,12,9};
+const int correctOrder[10] = {4,1,6,5,3,2,8,7,10,9};
 
 //Global Variables
 byte buttonStatus[numButtons];
