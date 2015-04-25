@@ -190,7 +190,7 @@ void loop()
     //Update Button
     //First # is the button number, second is the value to use
     //Skip 4 places to bypass the directions)
-    Joystick.button(orderPS3[i], buttonStatus[i+4]);
+    Joystick.button(correctOrder[i], buttonStatus[i+4]);
   }
   
   //Get the angle of the joystick and set that
