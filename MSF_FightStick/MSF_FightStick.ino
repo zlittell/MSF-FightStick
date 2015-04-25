@@ -32,6 +32,7 @@
 const int milliDebounce = 20;  //Debounce time in milliseconds
 const int numButtons = 14;  //Number of all buttons
 const int numButtonsOnly = 10; //Number of just buttons
+const int resting = 512;  //Constant for resting position
 //Joystick Pin Declarations
 const int pinUP = 5;  //Up on stick is pin 6
 const int pinDN = 6;  //Down on stick is pin 7
@@ -48,7 +49,7 @@ const int pinB6 = 15;  //Button 6 is pin 15
 const int pinB7 = 16;  //Button 7 is pin 16
 const int pinB8 = 17;  //Button 8 is pin 17
 //Front Panel Pin Declarations
-const int pinST = 18;  //Start Button is pin 18
+const int pinST = 18;  //Start Button is pin 18 Button 12
 const int pinSL = 19;  //Select Button is pin 19
 //Button Position in Array
 const int posUP = 0;
@@ -65,6 +66,15 @@ const int posB7 = 10;
 const int posB8 = 11;
 const int posST = 12;
 const int posSL = 13;
+//Array holds locations of button status to convert to correct order for PS3
+//PS3 Order
+//1)Triangle, 2)Circle, 3)Cross, 4)Square, 5)L1, 6)R1, 7)L2, 8)R2, 9)Select, 10)L3, 11)R3, 12)Start, 13)Home
+//Our current order has buttons wired as 1234, 5678
+//We need that to match Square Triangle R1 L1, Cross Circle R2 L2
+//4 1 6 5
+//3 2 8 7
+//12 9
+const int orderPS3[10] = {4,1,6,5,3,2,8,7,12,9};
 
 //Global Variables
 byte buttonStatus[numButtons];
@@ -161,13 +171,13 @@ void setup()
     pinMode(pinST, INPUT_PULLUP);
     pinMode(pinSL, INPUT_PULLUP);  
     
-    //Set Extra Shit to 0
-    Joystick.X(0);
-    Joystick.Y(0);
-    Joystick.Z(0);
-    Joystick.Zrotate(0);
-    Joystick.sliderLeft(0);
-    Joystick.sliderRight(0);
+    //Set Extra Shit to 512
+    Joystick.X(resting);
+    Joystick.Y(resting);
+    Joystick.Z(resting);
+    Joystick.Zrotate(resting);
+    Joystick.sliderLeft(resting);
+    Joystick.sliderRight(resting);
 }
 
 void loop() 
@@ -180,7 +190,7 @@ void loop()
     //Update Button
     //First # is the button number, second is the value to use
     //Skip 4 places to bypass the directions)
-    Joystick.button(i+1, buttonStatus[i+4]);
+    Joystick.button(orderPS3[i], buttonStatus[i+4]);
   }
   
   //Get the angle of the joystick and set that
