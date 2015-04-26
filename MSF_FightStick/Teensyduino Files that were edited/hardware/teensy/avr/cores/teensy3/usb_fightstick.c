@@ -6,11 +6,13 @@
 
 #ifdef USB_FIGHTSTICK // defined by usb_dev.h -> usb_desc.h
 
-// Need 3 bytes to cover all data needed for the fight stick
-// First byte is buttons 8-1 BBBBBBBB
-// Second byte is 3 padding bits and then buttons 13-9 xxxBBBBB 
-// Third byte is for the hat: 4 padding bits and then 4 hat bits xxxxHHHH
-uint8_t usb_fightstick_data[3];
+// Need 7 bytes to cover all data needed for the fight stick
+// First byte is for the hat 4 padding bits and then 4 hat bits xxxxHHHH
+// Second byte is buttons 1-8
+// Third byte is buttons 9-13 and then 3 padding bits BBBBBxxx
+// Rest were added for X, Y, Z, Rx, Ry
+// This was done because Mortal Kombat X sucks
+uint8_t usb_fightstick_data[8];
 
 // Maximum number of transmit packets to queue so we don't starve other endpoints for memory
 #define TX_PACKET_LIMIT 3
@@ -41,8 +43,8 @@ int usb_fightstick_send(void)
     }
 
     transmit_previous_timeout = 0;
-    memcpy(tx_packet->buf, usb_fightstick_data, 3);
-    tx_packet->len = 3;
+    memcpy(tx_packet->buf, usb_fightstick_data, 8);
+    tx_packet->len = 8;
     usb_tx(FIGHTSTICK_ENDPOINT, tx_packet);
 
     return 0;

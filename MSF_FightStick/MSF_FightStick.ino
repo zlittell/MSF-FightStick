@@ -81,7 +81,7 @@ const int CORRECTORDER[NUMBUTTONSONLY] = {1,4,6,5,2,3,8,7,10,9};
 //Global Variables
 byte buttonStatus[NUMBUTTONS];  //array Holds a "Snapshot" of the button status to parse and manipulate
 int stickPosition = 15;  //Create a variable to hold the position of the stick
-uint8_t usbData[3] = {0,0,0};  //Array to hold correctly formatted USB data that needs to be sent
+uint8_t usbData[8] = {0,0,0,127,127,127,127,127};  //Array to hold correctly formatted USB data that needs to be sent fill with 127 to center extra "fake" inputs
 
 //Setup Button Debouncing
 Bounce joystickUP = Bounce(pinUP, MILLIDEBOUNCE);
@@ -149,6 +149,8 @@ void buttonUpdate()
 //(Byte1) B8,B7,B6,B5,B4,B3,B2,B1
 //(Byte2) x,x,x,B13,B12,B11,B10,B9
 //(Byte3) x,x,x,x,D,D,D,D
+//The last bytes are all for X Y Z Rx Ry and should be set to 0 always
+//These were included because MK X was not picking up on a controller being plugged in
 void processInputs()
 {
   //Clear USB Data Holder Bytes
