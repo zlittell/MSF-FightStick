@@ -7,9 +7,9 @@
 #ifdef USB_FIGHTSTICK // defined by usb_dev.h -> usb_desc.h
 
 // Need 3 bytes to cover all data needed for the fight stick
-// First byte is for the hat 4 padding bits and then 4 hat bits xxxxHHHH
-// Second byte is buttons 1-8
-// Third byte is buttons 9-13 and then 3 padding bits BBBBBxxx
+// First byte is buttons 8-1 BBBBBBBB
+// Second byte is 3 padding bits and then buttons 13-9 xxxBBBBB 
+// Third byte is for the hat: 4 padding bits and then 4 hat bits xxxxHHHH
 uint8_t usb_fightstick_data[3];
 
 // Maximum number of transmit packets to queue so we don't starve other endpoints for memory
