@@ -32,7 +32,6 @@
 const int milliDebounce = 20;  //Debounce time in milliseconds
 const int numButtons = 14;  //Number of all buttons
 const int numButtonsOnly = 10; //Number of just buttons
-const int resting = 512;  //Constant for resting position
 //Joystick Pin Declarations
 const int pinUP = 5;  //Up on stick is pin 6
 const int pinDN = 6;  //Down on stick is pin 7
@@ -73,12 +72,13 @@ const int posSL = 13;
 //We need that to match Square Triangle R1 L1, Cross Circle R2 L2
 //4 1 6 5
 //3 2 8 7
-//12 9
-const int correctOrder[10] = {4,1,6,5,3,2,8,7,10,9};
+//10 9
+const int correctOrder[numButtonsOnly] = {4,1,6,5,3,2,8,7,10,9};
 
 //Global Variables
 byte buttonStatus[numButtons];
-int angle = -1;
+int stickPosition = 15;
+uint8_t usbData[3] = {0,0,0};
 //Setup Button Debouncing
 Bounce joystickUP = Bounce(pinUP, milliDebounce);
 Bounce joystickDOWN = Bounce(pinDN, milliDebounce);
@@ -94,6 +94,27 @@ Bounce button7 = Bounce(pinB7, milliDebounce);
 Bounce button8 = Bounce(pinB8, milliDebounce);
 Bounce buttonSTART = Bounce(pinST, milliDebounce);
 Bounce buttonSELECT = Bounce(pinSL, milliDebounce);
+
+//void Configure Inputs and Outputs
+void setupPins()
+{
+    //Configure the direction of the pins
+    //All inputs with internal pullups enabled
+    pinMode(pinUP, INPUT_PULLUP);
+    pinMode(pinDN, INPUT_PULLUP);
+    pinMode(pinLT, INPUT_PULLUP);
+    pinMode(pinRT, INPUT_PULLUP);
+    pinMode(pinB1, INPUT_PULLUP);
+    pinMode(pinB2, INPUT_PULLUP);
+    pinMode(pinB3, INPUT_PULLUP);
+    pinMode(pinB4, INPUT_PULLUP);
+    pinMode(pinB5, INPUT_PULLUP);
+    pinMode(pinB6, INPUT_PULLUP);
+    pinMode(pinB7, INPUT_PULLUP);
+    pinMode(pinB8, INPUT_PULLUP);
+    pinMode(pinST, INPUT_PULLUP);
+    pinMode(pinSL, INPUT_PULLUP);  
+}
 
 //Update Buttons
 void buttonUpdate()
@@ -114,91 +135,93 @@ void buttonUpdate()
   if (buttonSELECT.update()) {buttonStatus[posSL] = buttonSELECT.fallingEdge();}
 }
 
-//Process the angle of the joystick
-//Process the primary directions first (up and down)
-//Nest processing secondaries
-//Then process secondaries individually
-int joystickProcess()
+//Process all the inputs and load them into the correct bytes to be loaded to usb
+//Byte1 = 8 buttons, Byte2 5 buttons and 3 fillers, Byte3 DPAD and 4 fillers
+//(Byte1) B8,B7,B6,B5,B4,B3,B2,B1
+//(Byte2) x,x,x,B13,B12,B11,B10,B9
+//(Byte3) x,x,x,x,D,D,D,D
+void processInputs()
 {
-  //Process UP
-  if (buttonStatus[posUP])
+  //Clear USB Data Holder Bytes
+  usbData[0]=0x00;
+  usbData[1]=0x00;
+  usbData[2]=0x00;
+  
+  //Set up a variable to hold the correct button values
+  int rearrangedButtons[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+  
+  //Move button statuses into the correct order
+  for (int i=0; i<numButtonsOnly; i++)
   {
-    //UP + RIGHT = 45 degrees
-    if (buttonStatus[posRT]) {return 45;}
-    //UP + LEFT = 315 degrees
-    else if (buttonStatus[posLT]) {return 315;}
-    //Just UP = 0 degress
-    else {return 0;}
+    //look at button number from index i of correctorder array
+    //then set that button in the array for rearranged buttons
+    //to its value from button status
+    //sorry this is so crazy
+    int tempIndex = correctOrder[i] - 1;
+    rearrangedButtons[tempIndex] = buttonStatus[i+4];
   }
-  //Process DOWN
-  else if (buttonStatus[posDN])
+  
+  //Oh bitmasking here we go
+  //First byte (B8-B1)
+  for (int i=0; i<8; i++)
   {
-    //DOWN + RIGHT = 135
-    if (buttonStatus[posRT]) {return 135;}
-    //DOWN + LEFT = 225
-    else if (buttonStatus[posLT]) {return 225;}
-    //Just DOWN = 180
-    else {return 180;}
+    rearrangedButtons[i] <<= i;
+    usbData[0] |= rearrangedButtons[i];
   }
-  //Process Left = 270 degrees
-  else if (buttonStatus[posLT]) {return 270;}
-  //Process Right = 90 degrees
-  else if (buttonStatus[posRT]) {return 90;}
-  //Nothing pressed center the joystick with -1
-  else {return -1;}
+  
+  //Second byte
+  for (int i=0; i<8; i++)
+  {
+    rearrangedButtons[i+8] <<= i;
+    usbData[1] |= rearrangedButtons[i+8];
+  }
+  
+  
+  //Process the angle of the joystick
+  //Process the primary directions first (up and down)
+  //Nest processing secondaries
+  //Then process secondaries individually
+  //Variable to hold Position of Hat
+  int hatPosition;
+  //Up + Right = 1
+  if (buttonStatus[posUP] & buttonStatus[posRT]) {hatPosition = 1;}
+  //Up + Left = 7
+  else if (buttonStatus[posUP] & buttonStatus[posLT]) {hatPosition = 7;}
+  //Up = 0
+  else if (buttonStatus[posUP]) {hatPosition = 0;}
+  //Down + Right = 3
+  else if (buttonStatus[posDN] & buttonStatus[posRT]) {hatPosition = 3;}
+  //Down + Left = 5
+  else if (buttonStatus[posDN] & buttonStatus[posLT]) {hatPosition = 5;}
+  //Down = 4
+  else if (buttonStatus[posDN]) {hatPosition = 4;}
+  //Left = 6
+  else if (buttonStatus[posLT]) {hatPosition = 6;}
+  //Right = 2
+  else if (buttonStatus[posRT]) {hatPosition = 2;}
+  //nothing
+  else {hatPosition = 15;}
+  
+  //Man I hope they can just be equals
+  usbData[2] = hatPosition;
 }
 
 //Setup
 void setup() 
 {
-    //Configure joystick for manual send more.  Allows precise control over when updates are sent
-    Joystick.useManualSend(true);
-    
-    //Configure the direction of the pins
-    //All inputs with internal pullups enabled
-    pinMode(pinUP, INPUT_PULLUP);
-    pinMode(pinDN, INPUT_PULLUP);
-    pinMode(pinLT, INPUT_PULLUP);
-    pinMode(pinRT, INPUT_PULLUP);
-    pinMode(pinB1, INPUT_PULLUP);
-    pinMode(pinB2, INPUT_PULLUP);
-    pinMode(pinB3, INPUT_PULLUP);
-    pinMode(pinB4, INPUT_PULLUP);
-    pinMode(pinB5, INPUT_PULLUP);
-    pinMode(pinB6, INPUT_PULLUP);
-    pinMode(pinB7, INPUT_PULLUP);
-    pinMode(pinB8, INPUT_PULLUP);
-    pinMode(pinST, INPUT_PULLUP);
-    pinMode(pinSL, INPUT_PULLUP);  
-    
-    //Set Extra Shit to 512
-    Joystick.X(resting);
-    Joystick.Y(resting);
-    Joystick.Z(resting);
-    Joystick.Zrotate(resting);
-    Joystick.sliderLeft(resting);
-    Joystick.sliderRight(resting);
+    setupPins();
 }
 
 void loop() 
 {
+  //Poll Buttons
   buttonUpdate();
   
-  //For Loop to go through and load all the buttons from the array into the joystick to be sent
-  for (int i=0; i<numButtonsOnly; i++)
-  {
-    //Update Button
-    //First # is the button number, second is the value to use
-    //Skip 4 places to bypass the directions)
-    Joystick.button(correctOrder[i], buttonStatus[i+4]);
-  }
+  //Process all inputs and load up the usbData registers correctly
+  processInputs();
   
-  //Get the angle of the joystick and set that
-  angle = joystickProcess();
-  Joystick.hat(angle);
-
   //Update dat joystick SONNNNNN
-  Joystick.send_now();
+  FightStick.send(usbData);
   
   //Delays are lame
 }
