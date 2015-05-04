@@ -82,6 +82,7 @@ const int CORRECTORDER[NUMBUTTONSONLY] = {1,4,6,5,2,3,8,7,10,9};
 byte buttonStatus[NUMBUTTONS];  //array Holds a "Snapshot" of the button status to parse and manipulate
 int stickPosition = 15;  //Create a variable to hold the position of the stick
 uint8_t usbData[8] = {0,0,0,127,127,127,127,127};  //Array to hold correctly formatted USB data that needs to be sent fill with 127 to center extra "fake" inputs
+//uint8_t usbData[8] = {0,0,0,0,0,0,0,0};  //Try to fix this always looking up and to the left thing
 
 //Setup Button Debouncing
 Bounce joystickUP = Bounce(pinUP, MILLIDEBOUNCE);
@@ -229,6 +230,12 @@ void loop()
   
   //Process all inputs and load up the usbData registers correctly
   processInputs();
+  
+  //Check for bootloader jump
+  if (buttonStatus[POSUP] & buttonStatus[POSB1] & buttonStatus[POSB5] & buttonStatus[POSST] & buttonStatus[POSSL])
+  {
+    _reboot_Teensyduino_();
+  }
   
   //Update dat joystick SONNNNNN
   FightStick.send(usbData);
