@@ -33,9 +33,49 @@
 
 #if F_CPU >= 20000000
 
-#ifdef USB_FIGHTSTICK
-usb_fightstick_class FightStick;
+#ifdef CDC_DATA_INTERFACE
+#ifdef CDC_STATUS_INTERFACE
+usb_serial_class Serial;
 #endif
+#endif
+
+#ifdef MIDI_INTERFACE
+usb_midi_class usbMIDI;
+#endif
+
+#ifdef KEYBOARD_INTERFACE
+usb_keyboard_class Keyboard;
+#endif
+
+#ifdef MOUSE_INTERFACE
+usb_mouse_class Mouse;
+#endif
+
+#ifdef RAWHID_INTERFACE
+usb_rawhid_class RawHID;
+#endif
+
+#ifdef FLIGHTSIM_INTERFACE
+FlightSimClass FlightSim;
+#endif
+
+#ifdef SEREMU_INTERFACE
+usb_seremu_class Serial;
+#endif
+
+#ifdef JOYSTICK_INTERFACE
+usb_joystick_class Joystick;
+uint8_t usb_joystick_class::manual_mode = 0;
+#endif
+
+#ifdef USB_DISABLED
+usb_serial_class Serial;
+#endif
+
+#ifdef USB_FIGHTSTICK
+	usb_fightstick_class FightStick;
+#endif
+
 
 #else // F_CPU < 20 MHz
 

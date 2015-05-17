@@ -21,6 +21,14 @@
 #ifdef __cplusplus
 
 #include "avr_emulation.h"
+#include "usb_serial.h"
+#include "usb_seremu.h"
+#include "usb_keyboard.h"
+#include "usb_mouse.h"
+#include "usb_joystick.h"
+#include "usb_midi.h"
+#include "usb_rawhid.h"
+#include "usb_flightsim.h"
 #include "usb_fightstick.h"
 #include "usb_undef.h" // do not allow usb_desc.h stuff to leak to user programs
 
