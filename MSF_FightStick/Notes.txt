@@ -1,0 +1,28 @@
+Needs defined:
+
+
+
+Defined for use:
+extern usb_fightstick_class FightStick;
+	contains send, recv, and available functions
+	
+	
+	
+	
+	
+	
+	
+	
+Needs Edited:
+
+
+usb_inst.cpp
+usb_serial.h
+WProgram.h
+
+
+done:
+usb_fightstick.c
+usb_fightstick.h
+usb_desc.c
+usb_desc.h

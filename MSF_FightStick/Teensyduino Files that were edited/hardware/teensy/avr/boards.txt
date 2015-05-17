@@ -299,22 +299,6 @@ teensyLC.build.flags.ld=-Wl,--gc-sections,--relax,--defsym=__rtc_localtime={extr
 teensyLC.build.flags.libs=-larm_cortexM0l_math -lm
 teensyLC.serial.restart_cmd=false
 
-teensyLC.menu.usb.serial=Serial
-teensyLC.menu.usb.serial.build.usbtype=USB_SERIAL
-teensyLC.menu.usb.hid=Keyboard + Mouse + Joystick
-teensyLC.menu.usb.hid.build.usbtype=USB_HID
-teensyLC.menu.usb.hid.fake_serial=teensy_gateway
-teensyLC.menu.usb.serialhid=Serial + Keyboard + Mouse + Joystick
-teensyLC.menu.usb.serialhid.build.usbtype=USB_SERIAL_HID
-teensyLC.menu.usb.midi=MIDI
-teensyLC.menu.usb.midi.build.usbtype=USB_MIDI
-teensyLC.menu.usb.midi.fake_serial=teensy_gateway
-teensyLC.menu.usb.rawhid=Raw HID
-teensyLC.menu.usb.rawhid.build.usbtype=USB_RAWHID
-teensyLC.menu.usb.rawhid.fake_serial=teensy_gateway
-teensyLC.menu.usb.flightsim=Flight Sim Controls
-teensyLC.menu.usb.flightsim.build.usbtype=USB_FLIGHTSIM
-teensyLC.menu.usb.flightsim.fake_serial=teensy_gateway
 teensyLC.menu.usb.fightstick=[MSF] Shoryuken! FightStick
 teensyLC.menu.usb.fightstick.build.usbtype=USB_FIGHTSTICK
 teensyLC.menu.usb.fightstick.fake_serial=teensy_gateway

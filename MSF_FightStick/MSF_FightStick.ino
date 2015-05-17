@@ -5,31 +5,80 @@
     
     Developer: Zack "Reaper" Littell
     Email: zlittell@gmail.com
+    www.zlittell.com
     
     Cheap and awesome were the goals so hopefully that works out
     Uses the Teensy-LC
     
+    This tricks the computer into loading the xbox 360 controller driver.
+    Then it sends button reports in the same way as the xbox 360 controller.
+    Which means this is an example of making the teensy into a XINPUT device :).
+    
     This is used in a box with a joystick, 8 buttons on top, and a start select on the front.
     Also used in a similar setup but with a "hit box" layout.
-    Press start and select together for PS home.
+    Press start and select together for xbox logo.
+    This should work with steam big picture and stuff.
     
     Attempted to save PWM capable pins for LEDs if needed in the future.
     But some were sacrificed for ease of layout
-   
-    Obviously if you play on more than a PC this is not an ideal solution for you
-    We happen to only play PC as of right now and a PS360+ was just not in the build budget
-    however ~$10 teensyLC made the cut
     
-    Would love to eventual move to the FreeScale KDS and off the arduino
-    Also would love to eventually add in PS3 support
+    Would love to eventually move to the FreeScale KDS and off the arduino IDE
     
-    Shout outs:
-    Teensy Examples - for being awesome
+    Credit where credit is due:
+    Paul Stoffregen - for the awesome teensy and all the awesome examples he has included
     Hamaluik.com - for allowing me to not murder the arduino "IDE" out of frustration of hidden "magic"
+    BeyondLogic.org - for a great resource on all things USB protocol related
+    BrandonW - I contacted him a long time ago for a different project to get log files from his
+             - beagle usb 12 between the 360 and controller.  I used them again for verification
+             - and understanding during this project. (brandonw.net)
+    free60.org - for their page on the x360 gamepad and its lusb output plus the explanations of the descriptors
+    Microsoft - Windows Message Analyzer.  It wouldn't have been possible at times without this awesome message
+              - analyzer capturing USB packets.  Debugged many issues with enumerating the device using this.
+              
+    Also one final shoutout to Microsoft... basically **** you for creating xinput and not using HID to do so.
+    XINPUT makes signing drivers necessary again, which means paying you.  Also you have ZERO openly available
+    documentation on the XUSB device standard and I hate you for that.
 */
 
 //Includes
 #include <Bounce.h>
+
+//LED STYLE
+//0 = Do not use LED
+//1 = use on board LED
+//2 = in the future add option to use outputs for 4 LEDS
+const int LEDSTYLE = 1;
+
+/*
+//BUTTON MASK DEFINES
+const int R3_MASK 0x80;
+const int L3_MASK 0x40;
+const int BACK_MASK 0x20;
+const int START_MASK 0x10;
+const int DPAD_RIGHT_MASK 0x08;
+const int DPAD_LEFT_MASK 0x04;
+const int DPAD_DOWN_MASK 0x02;
+const int DPAD_UP_MASK 0x01;
+const int Y_MASK 0x80;
+const int X_MASK 0x40;
+const int B_MASK 0x20;
+const int A_MASK 0x10;
+const int LOGO_MASK 0x04;
+const int RB_MASK 0x02;
+const int LB_MASK 0x01;
+//Byte location Definitions
+const int BUTTON_PACKET_1 2;
+const int BUTTON_PACKET_2 3;
+const int LEFT_TRIGGER_PACKET 4;
+const int RIGHT_TRIGGER_PACKET 5;
+const int LEFT_STICK_X_PACKET_LSB 6;
+const int LEFT_STICK_X_PACKET_MSB 7;
+const int LEFT_STICK_Y_PACKET_LSB 8;
+const int LEFT_STICK_Y_PACKET_MSB 9;
+const int RIGHT_STICK_X_PACKET_LSB 10;
+const int RIGHT_STICK_X_PACKET_MSB 11;
+const int RIGHT_STICK_Y_PACKET_LSB 12;
+const int RIGHT_STICK_Y_PACKET_MSB 13;*/
 
 //Declarations
 const int MILLIDEBOUNCE= 20;  //Debounce time in milliseconds
@@ -67,22 +116,12 @@ const int POSB8 = 11;
 const int POSST = 12;
 const int POSSL = 13;
 
-//Array holds locations of button status to convert to correct order working with MKX on PC
-//Uses a mix of PS3 and XBOX360 Button mapping lol.  Don't ask why.
-//1)Triangle, 2)Circle, 3)Cross, 4)Square, 5)L1, 6)R1, 7)L2, 8)R2, 9)Select, 10)Start
-//Our current order has buttons wired as 1234, 5678
-//We need that to match Square Triangle R1 L1, Cross Circle R2 L2
-//Has been swapped to use the XBOX360 Layout because PC be cray cray
-//1 4 6 5
-//2 3 8 7
-//10 9
-const int CORRECTORDER[NUMBUTTONSONLY] = {1,4,6,5,2,3,8,7,10,9};
-
 //Global Variables
 byte buttonStatus[NUMBUTTONS];  //array Holds a "Snapshot" of the button status to parse and manipulate
-int stickPosition = 15;  //Create a variable to hold the position of the stick
-uint8_t usbData[8] = {0,0,0,127,127,127,127,127};  //Array to hold correctly formatted USB data that needs to be sent fill with 127 to center extra "fake" inputs
-//uint8_t usbData[8] = {0,0,0,0,0,0,0,0};  //Try to fix this always looking up and to the left thing
+uint8_t flashStyle = 0x00;
+uint16_t LEDtimer = 0;
+uint8_t TXData[20] = {0x00, 0x14, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  //Test Right 0x10 3rd byte
+uint8_t RXData[3] = {0x00, 0x00, 0x00};
 
 //Setup Button Debouncing
 Bounce joystickUP = Bounce(pinUP, MILLIDEBOUNCE);
@@ -145,82 +184,131 @@ void buttonUpdate()
   if (buttonSELECT.update()) {buttonStatus[POSSL] = buttonSELECT.fallingEdge();}
 }
 
-//Process all the inputs and load them into the correct bytes to be loaded to usb
-//Byte1 = 8 buttons, Byte2 5 buttons and 3 fillers, Byte3 DPAD and 4 fillers
-//(Byte1) B8,B7,B6,B5,B4,B3,B2,B1
-//(Byte2) x,x,x,B13,B12,B11,B10,B9
-//(Byte3) x,x,x,x,D,D,D,D
-//The last bytes are all for X Y Z Rx Ry and should be set to 0 always
-//These were included because MK X was not picking up on a controller being plugged in
+//ProcessInputs
+//Button layout on fight stick
+//      SL ST
+//1  2  3  4
+//5  6  7  8
+//X360 Verson
+//      BK  ST
+//X  Y  RB  LB
+//A  B  RT  LT
 void processInputs()
 {
-  //Clear USB Data Holder Bytes
-  usbData[0]=0x00;
-  usbData[1]=0x00;
-  usbData[2]=0x00;
+  //Zero out button values
+  for (int i=2; i<13; i++) {TXData[i] = 0x00;}
   
-  //Set up a variable to hold the correct button values
-  int rearrangedButtons[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+  //Button Packet 1 (usb data array position 2)
+  //DPAD Up
+  if (buttonStatus[POSUP]) {TXData[2] |= 0x01;}
+  //DPAD Down
+  if (buttonStatus[POSDN]) {TXData[2] |= 0x02;}
+  //DPAD Left
+  if (buttonStatus[POSLT]) {TXData[2] |= 0x04;}
+  //DPAD Right
+  if (buttonStatus[POSRT]) {TXData[2] |= 0x08;}
   
-  //Move button statuses into the correct order
-  for (int i=0; i<NUMBUTTONSONLY; i++)
-  {
-    //look at button number from index i of correctorder array
-    //then set that button in the array for rearranged buttons
-    //to its value from button status
-    //sorry this is so crazy
-    int tempIndex = CORRECTORDER[i] - 1;
-    rearrangedButtons[tempIndex] = buttonStatus[i+4];
-  }
+  //Button Start OR Select OR Both (XBOX Logo)
+  if (buttonStatus[POSST]&&buttonStatus[POSSL]) {TXData[3] |= 0x04;}
+  else if (buttonStatus[POSST]) {TXData[2] |= 0x10;}
+  else if (buttonStatus[POSSL]) {TXData[2] |= 0x20;}
   
-  //Oh bitmasking here we go
-  //First byte (B8-B1)
-  for (int i=0; i<8; i++)
-  {
-    rearrangedButtons[i] <<= i;
-    usbData[0] |= rearrangedButtons[i];
-  }
+  //Button Packet 2 (usb data array position 3)
+  //Button 1
+  if (buttonStatus[POSB1]) {TXData[3] |= 0x40;}
+  //Button 2
+  if (buttonStatus[POSB2]) {TXData[3] |= 0x80;}
+  //Button 3
+  if (buttonStatus[POSB3]) {TXData[3] |= 0x02;}
+  //Button 4
+  if (buttonStatus[POSB4]) {TXData[3] |= 0x01;}
+  //Button 5
+  if (buttonStatus[POSB5]) {TXData[3] |= 0x10;}
+  //Button 6
+  if (buttonStatus[POSB6]) {TXData[3] |= 0x20;}
   
-  //Second byte
-  for (int i=0; i<8; i++)
-  {
-    rearrangedButtons[i+8] <<= i;
-    usbData[1] |= rearrangedButtons[i+8];
-  }
-  
-  
-  //Process the angle of the joystick
-  //Process the primary directions first (up and down)
-  //Nest processing secondaries
-  //Then process secondaries individually
-  //Variable to hold Position of Hat
-  //Up + Right = 1
-  if (buttonStatus[POSUP] & buttonStatus[POSRT]) {stickPosition = 1;}
-  //Up + Left = 7
-  else if (buttonStatus[POSUP] & buttonStatus[POSLT]) {stickPosition = 7;}
-  //Up = 0
-  else if (buttonStatus[POSUP]) {stickPosition = 0;}
-  //Down + Right = 3
-  else if (buttonStatus[POSDN] & buttonStatus[POSRT]) {stickPosition = 3;}
-  //Down + Left = 5
-  else if (buttonStatus[POSDN] & buttonStatus[POSLT]) {stickPosition = 5;}
-  //Down = 4
-  else if (buttonStatus[POSDN]) {stickPosition = 4;}
-  //Left = 6
-  else if (buttonStatus[POSLT]) {stickPosition = 6;}
-  //Right = 2
-  else if (buttonStatus[POSRT]) {stickPosition = 2;}
-  //nothing
-  else {stickPosition = 15;}
-  
-  //Man I hope they can just be equals
-  usbData[2] = stickPosition;
+  //Triggers (usb data array position 4 and 5)
+  //Button 7
+  if (buttonStatus[POSB7]) {TXData[4] = 0xFF;}
+  //Button 8
+  if (buttonStatus[POSB8]) {TXData[5] = 0xFF;}
 }
+
+/*
+Process the LED Pattern
+0x00 OFF
+0x01 All Blinking
+0x02 1 Flashes, then on
+0x03 2 Flashes, then on
+0x04 3 Flashes, then on
+0x05 4 Flashes, then on
+0x06 1 on
+0x07 2 on
+0x08 3 on
+0x09 4 on
+0x0A Rotating (1-2-4-3)
+0x0B Blinking*
+0x0C Slow Blinking*
+0x0D Alternating (1+4-2+3)*
+*Does Pattern and then goes back to previous
+*/
+/*
+Remap for single led
+Combine 1 flash and on with 1 on etc
+All the rest do a rapid blink and pause
+*/
+void LEDPattern()
+{
+  //OFF
+  if (flashStyle == 0x00) {digitalWrite(pinOBLED, LOW);}
+  //All Blinking, Rotating (1-2-4-3), Blinking*, Slow Blinking*, Alternating (1+4-2+3)*
+  if ((flashStyle==0x01)||(flashStyle==0x0A)||(flashStyle==0x0B)||(flashStyle==0x0C)||(flashStyle==0x0D))
+  {
+    switch (LEDtimer)
+    {
+      case 0:
+        digitalWrite(pinOBLED, HIGH);
+      case 500:
+        digitalWrite(pinOBLED, LOW);
+      case 1000:
+        digitalWrite(pinOBLED, HIGH);
+      case 1500:
+        digitalWrite(pinOBLED, LOW);
+      case 2000:
+        digitalWrite(pinOBLED, HIGH);
+      case 2500:
+        digitalWrite(pinOBLED, LOW);
+      case 3000:
+        LEDtimer = 0;
+    }
+    LEDtimer++;
+  }
+  
+  //1 Flash and then On and just 1 ON
+  if ((flashStyle==0x02)||(flashStyle==0x06))
+  {
+    switch (LEDtimer)
+    {
+      case 0:
+        digitalWrite(pinOBLED, HIGH);
+      case 2000:
+        digitalWrite(pinOBLED, LOW);
+      case 4000:
+        digitalWrite(pinOBLED, HIGH);
+      case 6000:
+        digitalWrite(pinOBLED, LOW);
+      case 8000:
+        LEDtimer = 0;
+    }
+    LEDtimer++;
+  }
+}
+
 
 //Setup
 void setup() 
 {
-    setupPins();
+  setupPins();
 }
 
 void loop() 
@@ -238,5 +326,14 @@ void loop()
   }
   
   //Update dat joystick SONNNNNN
-  FightStick.send(usbData);
+  FightStick.send(TXData, 12840);
+  
+  if (FightStick.available() > 0)
+  {
+    FightStick.recv(RXData, 12840);
+    if (RXData[1] == 0x03) {flashStyle = RXData[3]; LEDtimer = 0;}
+  }
+  
+  //Process LED Pattern
+  LEDPattern();
 }
