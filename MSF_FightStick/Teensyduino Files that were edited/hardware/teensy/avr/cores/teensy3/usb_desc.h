@@ -304,7 +304,7 @@ let me know?  http://forum.pjrc.com/forums/4-Suggestions-amp-Bug-Reports
   #define ENDPOINT3_CONFIG	ENDPOINT_TRANSIMIT_ONLY
   #define ENDPOINT4_CONFIG	ENDPOINT_RECEIVE_ONLY
 
-#elif defined(USB_FIGHTSTICK)
+#elif defined(USB_XINPUT)
   #define DEVICE_CLASS	0xFF
   #define DEVICE_SUBCLASS	0xFF
   #define DEVICE_PROTOCOL	0xFF
@@ -321,11 +321,11 @@ let me know?  http://forum.pjrc.com/forums/4-Suggestions-amp-Bug-Reports
   #define NUM_ENDPOINTS	6
   #define NUM_USB_BUFFERS	24
   #define NUM_INTERFACE	4
-  #define FIGHTSTICK_INTERFACE	0
-  #define FIGHTSTICK_RX_ENDPOINT	2
-  #define FIGHTSTICK_RX_SIZE 3
-  #define FIGHTSTICK_TX_ENDPOINT	1
-  #define FIGHTSTICK_TX_SIZE 20
+  #define XINPUT_INTERFACE	0
+  #define XINPUT_RX_ENDPOINT	2
+  #define XINPUT_RX_SIZE 3
+  #define XINPUT_TX_ENDPOINT	1
+  #define XINPUT_TX_SIZE 20
   #define CONFIG_DESC_SIZE 153
   #define ENDPOINT1_CONFIG ENDPOINT_TRANSIMIT_ONLY
   #define ENDPOINT2_CONFIG ENDPOINT_RECEIVE_ONLY

@@ -770,7 +770,7 @@ static uint8_t config_descriptor[CONFIG_DESC_SIZE] = {
         JOYSTICK_INTERVAL,                      // bInterval
 #endif // JOYSTICK_INTERFACE
 
-#ifdef FIGHTSTICK_INTERFACE
+#ifdef XINPUT_INTERFACE
 //Interface 0
 	9,				//bLength (length of interface descriptor 9 bytes)
 	4,				//bDescriptorType (4 is interface)
@@ -870,7 +870,7 @@ static uint8_t config_descriptor[CONFIG_DESC_SIZE] = {
 	4,				//iInterface (Computer never asks for this, but an x360 would. so include one day?)
 	//Another interface another Common Descriptor
 	6,65,0,1,1,3
-#endif // FIGHTSTICK_INTERFACE
+#endif // XINPUT_INTERFACE
 
 };
 

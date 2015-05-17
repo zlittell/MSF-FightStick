@@ -2,8 +2,8 @@ These are files that were edited in the teensyduino installation:
 arduino install\hardware\teensy\avr\boards.txt
 arduino install\hardware\teensy\avr\cores\teensy3\usb_desc.c
 arduino install\hardware\teensy\avr\cores\teensy3\usb_desc.h
-arduino install\hardware\teensy\avr\cores\teensy3\usb_fightstick.c
-arduino install\hardware\teensy\avr\cores\teensy3\usb_fightstick.h
+arduino install\hardware\teensy\avr\cores\teensy3\usb_xinput.c
+arduino install\hardware\teensy\avr\cores\teensy3\usb_xinput.h
 arduino install\hardware\teensy\avr\cores\teensy3\usb_inst.cpp
 arduino install\hardware\teensy\avr\cores\teensy3\usb_serial.h
 arduino install\hardware\teensy\avr\cores\teensy3\WProgram.h

@@ -325,13 +325,14 @@ void loop()
     _reboot_Teensyduino_();
   }
   
-  //Update dat joystick SONNNNNN
-  FightStick.send(TXData, 12840);
+  //Update Buttons
+  XInput.send(TXData, 12840);
   
-  if (FightStick.available() > 0)
+  //Check if packet available and parse to see if its an LED pattern packet
+  if (XInput.available() > 0)
   {
-    FightStick.recv(RXData, 12840);
-    if (RXData[1] == 0x03) {flashStyle = RXData[3]; LEDtimer = 0;}
+    XInput.recv(RXData, 12840);
+    if (RXData[1] == 0x03) {flashStyle = RXData[2]; LEDtimer = 0;}
   }
   
   //Process LED Pattern
