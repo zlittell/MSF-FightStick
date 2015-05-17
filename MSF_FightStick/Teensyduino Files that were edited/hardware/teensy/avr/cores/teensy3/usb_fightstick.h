@@ -1,7 +1,9 @@
-#ifndef _USB_FIGHTSTICK_H_
-#define _USB_FIGHTSTICK_H_
+#ifndef USBFightStick_h_
+#define USBFightStick_h_
 
-#if defined(USB_FIGHTSTICK)
+#include "usb_desc.h"
+
+#if defined(FIGHTSTICK_INTERFACE)
 
 #include <inttypes.h>
 
@@ -9,33 +11,28 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-int usb_fightstick_send(void);
-// Need 7 bytes to cover all data needed for the fight stick
-// First byte is for the hat 4 padding bits and then 4 hat bits xxxxHHHH
-// Second byte is buttons 1-8
-// Third byte is buttons 9-13 and then 3 padding bits BBBBBxxx
-// Rest were added for X, Y, Z, Rx, Ry
-// This was done because Mortal Kombat X sucks
-extern uint8_t usb_fightstick_data[8];
+int usb_fightstick_recv(void *buffer, uint32_t timeout);
+int usb_fightstick_available(void);
+int usb_fightstick_send(const void *buffer, uint32_t timeout);
 #ifdef __cplusplus
 }
 #endif
+
 
 // C++ interface
 #ifdef __cplusplus
 class usb_fightstick_class
 {
 public:
-    void send(uint8_t usbData[8]) {
-		for (int i=0; i<8; i++)
-		{
-			usb_fightstick_data[i] = usbData[i];
-		}
-        usb_fightstick_send();
-    }
+	int available(void) {return usb_fightstick_available(); }
+	int recv(void *buffer, uint16_t timeout) { return usb_fightstick_recv(buffer, timeout); }
+	int send(const void *buffer, uint16_t timeout) { return usb_fightstick_send(buffer, timeout); }
 };
+
 extern usb_fightstick_class FightStick;
 
-#endif
-#endif
-#endif
+#endif // __cplusplus
+
+#endif // FIGHTSTICK_INTERFACE
+
+#endif // USBFightStick_h_
