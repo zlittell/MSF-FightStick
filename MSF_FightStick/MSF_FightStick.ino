@@ -45,17 +45,15 @@
 #include "FightStick.h"
 
 //LED STYLE
-//0 = Do not use LED
-//1 = use on board LED
-//2 = in the future add option to use outputs for 4 LEDS
-const int LEDSTYLE = 1;
+//NO_LED = Do not use LED
+//ONBOARD_LED = use on board LED
+//EXTERNAL_LED = in the future add option to use outputs for 4 LEDS
+const int LEDSTYLE = ONBOARD_LED;
 
 //Global Variables
 byte buttonStatus[NUMBUTTONS];  //array Holds a "Snapshot" of the button status to parse and manipulate
-uint8_t flashStyle = 0x00;
-uint16_t LEDtimer = 0;
-uint8_t TXData[20] = {0x00, 0x14, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  //Test Right 0x10 3rd byte
-uint8_t RXData[3] = {0x00, 0x00, 0x00};
+uint8_t TXData[20] = {0x00, 0x14, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  //Holds USB transmit packet data
+uint8_t RXData[3] = {0x00, 0x00, 0x00};  //Holds USB receive packet data
 
 //LED Toggle Tracking Global Variables
 uint8_t LEDState = LOW;	//used to set the pin for the LED
@@ -146,42 +144,45 @@ void buttonUpdate()
 void processInputs()
 {
   //Zero out button values
+  //Start at 2 so that you can keep the message type and packet size
+  //Then fill the rest with 0x00's
   for (int i=2; i<13; i++) {TXData[i] = 0x00;}
   
   //Button Packet 1 (usb data array position 2)
   //DPAD Up
-  if (buttonStatus[POSUP]) {TXData[2] |= 0x01;}
+  if (buttonStatus[POSUP]) {TXData[BUTTON_PACKET_1] |= DPAD_UP_MASK;}
   //DPAD Down
-  if (buttonStatus[POSDN]) {TXData[2] |= 0x02;}
+  if (buttonStatus[POSDN]) {TXData[BUTTON_PACKET_1] |= DPAD_DOWN_MASK;}
   //DPAD Left
-  if (buttonStatus[POSLT]) {TXData[2] |= 0x04;}
+  if (buttonStatus[POSLT]) {TXData[BUTTON_PACKET_1] |= DPAD_LEFT_MASK;}
   //DPAD Right
-  if (buttonStatus[POSRT]) {TXData[2] |= 0x08;}
+  if (buttonStatus[POSRT]) {TXData[BUTTON_PACKET_1] |= DPAD_RIGHT_MASK;}
   
   //Button Start OR Select OR Both (XBOX Logo)
-  if (buttonStatus[POSST]&&buttonStatus[POSSL]) {TXData[3] |= 0x04;}
-  else if (buttonStatus[POSST]) {TXData[2] |= 0x10;}
-  else if (buttonStatus[POSSL]) {TXData[2] |= 0x20;}
+  if (buttonStatus[POSST]&&buttonStatus[POSSL]) {TXData[BUTTON_PACKET_2] |= LOGO_MASK;}
+  else if (buttonStatus[POSST]) {TXData[BUTTON_PACKET_1] |= START_MASK;}
+  else if (buttonStatus[POSSL]) {TXData[BUTTON_PACKET_1] |= BACK_MASK;}
   
   //Button Packet 2 (usb data array position 3)
   //Button 1
-  if (buttonStatus[POSB1]) {TXData[3] |= 0x40;}
+  if (buttonStatus[POSB1]) {TXData[BUTTON_PACKET_2] |= X_MASK;}
   //Button 2
-  if (buttonStatus[POSB2]) {TXData[3] |= 0x80;}
+  if (buttonStatus[POSB2]) {TXData[BUTTON_PACKET_2] |= Y_MASK;}
   //Button 3
-  if (buttonStatus[POSB3]) {TXData[3] |= 0x02;}
+  if (buttonStatus[POSB3]) {TXData[BUTTON_PACKET_2] |= RB_MASK;}
   //Button 4
-  if (buttonStatus[POSB4]) {TXData[3] |= 0x01;}
+  if (buttonStatus[POSB4]) {TXData[BUTTON_PACKET_2] |= LB_MASK;}
   //Button 5
-  if (buttonStatus[POSB5]) {TXData[3] |= 0x10;}
+  if (buttonStatus[POSB5]) {TXData[BUTTON_PACKET_2] |= A_MASK;}
   //Button 6
-  if (buttonStatus[POSB6]) {TXData[3] |= 0x20;}
+  if (buttonStatus[POSB6]) {TXData[BUTTON_PACKET_2] |= B_MASK;}
   
   //Triggers (usb data array position 4 and 5)
+  //0xFF is full scale
   //Button 7
-  if (buttonStatus[POSB7]) {TXData[4] = 0xFF;}
+  if (buttonStatus[POSB7]) {TXData[LEFT_TRIGGER_PACKET] = 0xFF;}
   //Button 8
-  if (buttonStatus[POSB8]) {TXData[5] = 0xFF;}
+  if (buttonStatus[POSB8]) {TXData[RIGHT_TRIGGER_PACKET] = 0xFF;}
 }
 
 //Select pattern
@@ -300,13 +301,13 @@ void loop()
   }
   
   //Update Buttons
-  XInput.send(TXData, 12840);
+  XInput.send(TXData, USB_TIMEOUT);
   
   //Check if packet available and parse to see if its an LED pattern packet
   if (XInput.available() > 0)
   {
     //Grab packet and store it in RXData array
-    XInput.recv(RXData, 12840);
+    XInput.recv(RXData, USB_TIMEOUT);
     
     //If the data is an LED pattern command parse it
     if(RXData[0] == 1)
@@ -316,7 +317,7 @@ void loop()
   }
   
   //Process the LED pattern if the style is onboard LED
-  if (LEDSTYLE == 1)
+  if (LEDSTYLE == ONBOARD_LED)
   {
     LEDPatternDisplay();
   }

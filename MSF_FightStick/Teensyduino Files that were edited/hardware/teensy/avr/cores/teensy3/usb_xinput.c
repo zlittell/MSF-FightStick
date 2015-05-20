@@ -1,12 +1,14 @@
 #include "usb_dev.h"
-#include "usb_rawhid.h"
+#include "usb_xinput.h"
 #include "core_pins.h" // for yield(), millis()
 #include <string.h>    // for memcpy()
-#include "HardwareSerial.h"
+//#include "HardwareSerial.h"
 
 #ifdef XINPUT_INTERFACE // defined by usb_dev.h -> usb_desc.h
 #if F_CPU >= 20000000
 
+//Function receives packets from the RX endpoint
+//We will use this for receiving LED commands
 int usb_xinput_recv(void *buffer, uint32_t timeout)
 {
 	usb_packet_t *rx_packet;
@@ -24,6 +26,8 @@ int usb_xinput_recv(void *buffer, uint32_t timeout)
 	return XINPUT_RX_SIZE;
 }
 
+//Function to check if packets are available
+//to be received on the RX endpoint
 int usb_xinput_available(void)
 {
 	uint32_t count;
@@ -36,6 +40,8 @@ int usb_xinput_available(void)
 // Maximum number of transmit packets to queue so we don't starve other endpoints for memory
 #define TX_PACKET_LIMIT 3
 
+//Function used to send packets out of the TX endpoint
+//This is used to send button reports
 int usb_xinput_send(const void *buffer, uint32_t timeout)
 {
 	usb_packet_t *tx_packet;
