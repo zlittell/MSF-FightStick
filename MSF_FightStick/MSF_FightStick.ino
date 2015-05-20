@@ -42,6 +42,7 @@
 
 //Includes
 #include <Bounce.h>
+#include "FightStick.h"
 
 //LED STYLE
 //0 = Do not use LED
@@ -49,79 +50,28 @@
 //2 = in the future add option to use outputs for 4 LEDS
 const int LEDSTYLE = 1;
 
-/*
-//BUTTON MASK DEFINES
-const int R3_MASK 0x80;
-const int L3_MASK 0x40;
-const int BACK_MASK 0x20;
-const int START_MASK 0x10;
-const int DPAD_RIGHT_MASK 0x08;
-const int DPAD_LEFT_MASK 0x04;
-const int DPAD_DOWN_MASK 0x02;
-const int DPAD_UP_MASK 0x01;
-const int Y_MASK 0x80;
-const int X_MASK 0x40;
-const int B_MASK 0x20;
-const int A_MASK 0x10;
-const int LOGO_MASK 0x04;
-const int RB_MASK 0x02;
-const int LB_MASK 0x01;
-//Byte location Definitions
-const int BUTTON_PACKET_1 2;
-const int BUTTON_PACKET_2 3;
-const int LEFT_TRIGGER_PACKET 4;
-const int RIGHT_TRIGGER_PACKET 5;
-const int LEFT_STICK_X_PACKET_LSB 6;
-const int LEFT_STICK_X_PACKET_MSB 7;
-const int LEFT_STICK_Y_PACKET_LSB 8;
-const int LEFT_STICK_Y_PACKET_MSB 9;
-const int RIGHT_STICK_X_PACKET_LSB 10;
-const int RIGHT_STICK_X_PACKET_MSB 11;
-const int RIGHT_STICK_Y_PACKET_LSB 12;
-const int RIGHT_STICK_Y_PACKET_MSB 13;*/
-
-//Declarations
-const int MILLIDEBOUNCE= 20;  //Debounce time in milliseconds
-const int NUMBUTTONS = 14;  //Number of all buttons
-const int NUMBUTTONSONLY = 10; //Number of just buttons
-//Pin Declarations
-const int pinUP = 5;  //Up on stick is pin 6
-const int pinDN = 6;  //Down on stick is pin 7
-const int pinLT = 7;  //Left on stick is pin 8
-const int pinRT = 8;  //Right on stick is pin 9
-const int pinB1 = 9;  //Button 1 is pin 10 (Start of top row and across)
-const int pinB2 = 10;  //Button 2 is pin 11
-const int pinB3 = 11;  //Button 3 is pin 12
-const int pinB4 = 12;  //Button 4 is pin 13
-const int pinB5 = 14;  //Button 5 is pin 14 (Start of second row and across)
-const int pinB6 = 15;  //Button 6 is pin 15
-const int pinB7 = 16;  //Button 7 is pin 16
-const int pinB8 = 17;  //Button 8 is pin 17
-const int pinST = 18;  //Start Button is pin 18
-const int pinSL = 19;  //Select Button is pin 19
-const int pinOBLED = 13;  //Onboard LED pin
-//Position of a button in the button status array
-const int POSUP = 0;
-const int POSDN = 1;
-const int POSLT = 2;
-const int POSRT = 3;
-const int POSB1 = 4;
-const int POSB2 = 5;
-const int POSB3 = 6;
-const int POSB4 = 7;
-const int POSB5 = 8;
-const int POSB6 = 9;
-const int POSB7 = 10;
-const int POSB8 = 11;
-const int POSST = 12;
-const int POSSL = 13;
-
 //Global Variables
 byte buttonStatus[NUMBUTTONS];  //array Holds a "Snapshot" of the button status to parse and manipulate
 uint8_t flashStyle = 0x00;
 uint16_t LEDtimer = 0;
 uint8_t TXData[20] = {0x00, 0x14, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  //Test Right 0x10 3rd byte
 uint8_t RXData[3] = {0x00, 0x00, 0x00};
+
+//LED Toggle Tracking Global Variables
+uint8_t LEDState = LOW;	//used to set the pin for the LED
+uint32_t previousMS = 0; //used to store the last time LED was updated
+uint8_t LEDtracker = 0;	//used as an index to step through a pattern on interval
+
+//LED Patterns
+uint8_t patternAllOff[10] = {0,0,0,0,0,0,0,0,0,0};
+uint8_t patternBlinkRotate[10] = {1,0,1,0,1,0,1,0,1,0};
+uint8_t patternPlayer1[10] = {1,0,0,0,0,0,0,0,0,0};
+uint8_t patternPlayer2[10] = {1,0,1,0,0,0,0,0,0,0};
+uint8_t patternPlayer3[10] = {1,0,1,0,1,0,0,0,0,0};
+uint8_t patternPlayer4[10] = {1,0,1,0,1,0,1,0,0,0};
+
+//Variable to hold the current pattern selected by the host
+uint8_t patternCurrent[10] = {0,0,0,0,0,0,0,0,0,0};
 
 //Setup Button Debouncing
 Bounce joystickUP = Bounce(pinUP, MILLIDEBOUNCE);
@@ -234,6 +184,9 @@ void processInputs()
   if (buttonStatus[POSB8]) {TXData[5] = 0xFF;}
 }
 
+//Select pattern
+//Examines USB packet and sets the correct pattern
+//according to the 3rd byte
 /*
 Process the LED Pattern
 0x00 OFF
@@ -252,58 +205,79 @@ Process the LED Pattern
 0x0D Alternating (1+4-2+3)*
 *Does Pattern and then goes back to previous
 */
-/*
-Remap for single led
-Combine 1 flash and on with 1 on etc
-All the rest do a rapid blink and pause
-*/
-void LEDPattern()
+void LEDPatternSelect()
 {
-  //OFF
-  if (flashStyle == 0x00) {digitalWrite(pinOBLED, LOW);}
-  //All Blinking, Rotating (1-2-4-3), Blinking*, Slow Blinking*, Alternating (1+4-2+3)*
-  if ((flashStyle==0x01)||(flashStyle==0x0A)||(flashStyle==0x0B)||(flashStyle==0x0C)||(flashStyle==0x0D))
-  {
-    switch (LEDtimer)
-    {
-      case 0:
-        digitalWrite(pinOBLED, HIGH);
-      case 500:
-        digitalWrite(pinOBLED, LOW);
-      case 1000:
-        digitalWrite(pinOBLED, HIGH);
-      case 1500:
-        digitalWrite(pinOBLED, LOW);
-      case 2000:
-        digitalWrite(pinOBLED, HIGH);
-      case 2500:
-        digitalWrite(pinOBLED, LOW);
-      case 3000:
-        LEDtimer = 0;
-    }
-    LEDtimer++;
-  }
-  
-  //1 Flash and then On and just 1 ON
-  if ((flashStyle==0x02)||(flashStyle==0x06))
-  {
-    switch (LEDtimer)
-    {
-      case 0:
-        digitalWrite(pinOBLED, HIGH);
-      case 2000:
-        digitalWrite(pinOBLED, LOW);
-      case 4000:
-        digitalWrite(pinOBLED, HIGH);
-      case 6000:
-        digitalWrite(pinOBLED, LOW);
-      case 8000:
-        LEDtimer = 0;
-    }
-    LEDtimer++;
-  }
+	//All blinking or rotating
+	if((RXData[2]==ALLBLINKING)||(RXData[2]==ROTATING))
+	{
+		//Copy the pattern array into the current pattern
+		memcpy(patternCurrent, patternBlinkRotate, 10);
+		//Reset the index to beginning of pattern
+		LEDtracker = 0;	
+	}
+	//Device is player 1
+	else if ((RXData[2]==FLASHON1)||(RXData[2]==ON1))
+	{
+		//Copy the pattern array into the current pattern
+		memcpy(patternCurrent, patternPlayer1, 10);
+		//Reset the index to beginning of pattern
+		LEDtracker = 0;
+	}
+	//Device is player 2
+	else if ((RXData[2]==FLASHON2)||(RXData[2]==ON2))
+	{
+		//Copy the pattern array into the current pattern
+		memcpy(patternCurrent, patternPlayer2, 10);
+		//Reset the index to beginning of pattern
+		LEDtracker = 0;
+	}
+	//Device is player 3
+	else if ((RXData[2]==FLASHON3)||(RXData[2]==ON3))
+	{
+		//Copy the pattern array into the current pattern
+		memcpy(patternCurrent, patternPlayer3, 10);
+		//Reset the index to beginning of pattern
+		LEDtracker = 0;
+	}
+	//Device is player 4
+	else if ((RXData[2]==FLASHON4)||(RXData[2]==ON4))
+	{
+		//Copy the pattern array into the current pattern
+		memcpy(patternCurrent, patternPlayer4, 10);
+		//Reset the index to beginning of pattern
+		LEDtracker = 0;
+	}
+	//If pattern is not specified perform no pattern
+	else
+	{
+		//Copy the pattern array into the current pattern
+		memcpy(patternCurrent, patternAllOff, 10);
+		//Pattern is all 0's so we don't care where LEDtracker is at
+	}
 }
 
+//Cycle through the LED pattern
+void LEDPatternDisplay(void)
+{
+	//Grab the current time in mS that the program has been running
+	uint32_t currentMS = millis();
+	
+	//subtract the previous update time from the current time and see if interval has passed
+	if ((currentMS - previousMS)>interval)
+	{
+		//Set the led state correctly according to next part of pattern
+		LEDState = patternCurrent[LEDtracker];
+		//update the previous time
+		previousMS = currentMS;
+		//increment the pattern tracker
+		LEDtracker++;
+		//write the state to the led
+		digitalWrite(pinOBLED, LEDState);
+	}
+	
+	//if we increased ledtracker to 10, it needs to rollover
+	if (LEDtracker==10) {LEDtracker=0;}
+}
 
 //Setup
 void setup() 
@@ -331,10 +305,19 @@ void loop()
   //Check if packet available and parse to see if its an LED pattern packet
   if (XInput.available() > 0)
   {
+    //Grab packet and store it in RXData array
     XInput.recv(RXData, 12840);
-    if (RXData[1] == 0x03) {flashStyle = RXData[2]; LEDtimer = 0;}
+    
+    //If the data is an LED pattern command parse it
+    if(RXData[0] == 1)
+    {
+      LEDPatternSelect();
+    }
   }
   
-  //Process LED Pattern
-  LEDPattern();
+  //Process the LED pattern if the style is onboard LED
+  if (LEDSTYLE == 1)
+  {
+    LEDPatternDisplay();
+  }
 }
