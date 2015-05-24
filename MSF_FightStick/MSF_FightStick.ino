@@ -149,14 +149,16 @@ void processInputs()
   for (int i=2; i<13; i++) {TXData[i] = 0x00;}
   
   //Button Packet 1 (usb data array position 2)
+  //SOCD cleaner included
+  //Programmed behavior is UP+DOWN=UP and LEFT+RIGHT=NEUTRAL
   //DPAD Up
   if (buttonStatus[POSUP]) {TXData[BUTTON_PACKET_1] |= DPAD_UP_MASK;}
   //DPAD Down
-  if (buttonStatus[POSDN]) {TXData[BUTTON_PACKET_1] |= DPAD_DOWN_MASK;}
+  if (buttonStatus[POSDN] && !buttonStatus[POSUP]) {TXData[BUTTON_PACKET_1] |= DPAD_DOWN_MASK;}
   //DPAD Left
-  if (buttonStatus[POSLT]) {TXData[BUTTON_PACKET_1] |= DPAD_LEFT_MASK;}
+  if (buttonStatus[POSLT] && !buttonStatus[POSRT]) {TXData[BUTTON_PACKET_1] |= DPAD_LEFT_MASK;}
   //DPAD Right
-  if (buttonStatus[POSRT]) {TXData[BUTTON_PACKET_1] |= DPAD_RIGHT_MASK;}
+  if (buttonStatus[POSRT] && !buttonStatus[POSLT]) {TXData[BUTTON_PACKET_1] |= DPAD_RIGHT_MASK;}
   
   //Button Start OR Select OR Both (XBOX Logo)
   if (buttonStatus[POSST]&&buttonStatus[POSSL]) {TXData[BUTTON_PACKET_2] |= LOGO_MASK;}
