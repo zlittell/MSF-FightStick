@@ -135,8 +135,8 @@ void buttonUpdate()
 //ProcessInputs
 //Button layout on fight stick
 //      SL ST
-//1  2  3  4
 //5  6  7  8
+//1  2  3  4
 //X360 Verson
 //      BK  ST
 //X  Y  RB  LB
@@ -165,24 +165,24 @@ void processInputs()
   
   //Button Packet 2 (usb data array position 3)
   //Button 1
-  if (buttonStatus[POSB1]) {TXData[BUTTON_PACKET_2] |= X_MASK;}
+  if (buttonStatus[POSB1]) {TXData[BUTTON_PACKET_2] |= A_MASK;}
   //Button 2
-  if (buttonStatus[POSB2]) {TXData[BUTTON_PACKET_2] |= Y_MASK;}
-  //Button 3
-  if (buttonStatus[POSB3]) {TXData[BUTTON_PACKET_2] |= RB_MASK;}
-  //Button 4
-  if (buttonStatus[POSB4]) {TXData[BUTTON_PACKET_2] |= LB_MASK;}
+  if (buttonStatus[POSB2]) {TXData[BUTTON_PACKET_2] |= B_MASK;}
   //Button 5
-  if (buttonStatus[POSB5]) {TXData[BUTTON_PACKET_2] |= A_MASK;}
+  if (buttonStatus[POSB5]) {TXData[BUTTON_PACKET_2] |= X_MASK;}
   //Button 6
-  if (buttonStatus[POSB6]) {TXData[BUTTON_PACKET_2] |= B_MASK;}
+  if (buttonStatus[POSB6]) {TXData[BUTTON_PACKET_2] |= Y_MASK;}
+  //Button 7
+  if (buttonStatus[POSB7]) {TXData[BUTTON_PACKET_2] |= RB_MASK;}
+  //Button 8
+  if (buttonStatus[POSB8]) {TXData[BUTTON_PACKET_2] |= LB_MASK;}
   
   //Triggers (usb data array position 4 and 5)
   //0xFF is full scale
-  //Button 7
-  if (buttonStatus[POSB7]) {TXData[LEFT_TRIGGER_PACKET] = 0xFF;}
-  //Button 8
-  if (buttonStatus[POSB8]) {TXData[RIGHT_TRIGGER_PACKET] = 0xFF;}
+  //Button 3
+  if (buttonStatus[POSB3]) {TXData[LEFT_TRIGGER_PACKET] = 0xFF;}
+  //Button 4
+  if (buttonStatus[POSB4]) {TXData[RIGHT_TRIGGER_PACKET] = 0xFF;}
 }
 
 //Select pattern
