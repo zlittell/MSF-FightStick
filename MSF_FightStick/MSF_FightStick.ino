@@ -42,34 +42,48 @@
 
 //Includes
 #include <Bounce.h>
-#include "FightStick.h"
+#include "xinput.h"
 
-//LED STYLE
-//NO_LED = Do not use LED
-//ONBOARD_LED = use on board LED
-//EXTERNAL_LED = in the future add option to use outputs for 4 LEDS
-const int LEDSTYLE = ONBOARD_LED;
+//General Declarations
+#define MILLIDEBOUNCE 20  //Debounce time in milliseconds
+#define NUMBUTTONS 14  //Number of all buttons
+#define NUMBUTTONSONLY 10 //Number of just buttons
+
+//Pin Declarations
+#define pinUP 5  //Up on stick is pin 5
+#define pinDN 6  //Down on stick is pin 6
+#define pinLT 7  //Left on stick is pin 7
+#define pinRT 8  //Right on stick is pin 8
+#define pinB1 9  //Button 1 is pin 9 (Start of top row and across)
+#define pinB2 10  //Button 2 is pin 10
+#define pinB3 11  //Button 3 is pin 11
+#define pinB4 12  //Button 4 is pin 12
+#define pinB5 14  //Button 5 is pin 13 (Start of second row and across)
+#define pinB6 15  //Button 6 is pin 14
+#define pinB7 16  //Button 7 is pin 15
+#define pinB8 17  //Button 8 is pin 16
+#define pinST 18  //Start Button is pin 17
+#define pinSL 19  //Select Button is pin 18
+#define pinOBLED 13  //Onboard LED pin
+
+//Position of a button in the button status array
+#define POSUP 0
+#define POSDN 1
+#define POSLT 2
+#define POSRT 3
+#define POSB1 4
+#define POSB2 5
+#define POSB3 6
+#define POSB4 7
+#define POSB5 8
+#define POSB6 9
+#define POSB7 10
+#define POSB8 11
+#define POSST 12
+#define POSSL 13
 
 //Global Variables
 byte buttonStatus[NUMBUTTONS];  //array Holds a "Snapshot" of the button status to parse and manipulate
-uint8_t TXData[20] = {0x00, 0x14, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  //Holds USB transmit packet data
-uint8_t RXData[3] = {0x00, 0x00, 0x00};  //Holds USB receive packet data
-
-//LED Toggle Tracking Global Variables
-uint8_t LEDState = LOW;	//used to set the pin for the LED
-uint32_t previousMS = 0; //used to store the last time LED was updated
-uint8_t LEDtracker = 0;	//used as an index to step through a pattern on interval
-
-//LED Patterns
-uint8_t patternAllOff[10] = {0,0,0,0,0,0,0,0,0,0};
-uint8_t patternBlinkRotate[10] = {1,0,1,0,1,0,1,0,1,0};
-uint8_t patternPlayer1[10] = {1,0,0,0,0,0,0,0,0,0};
-uint8_t patternPlayer2[10] = {1,0,1,0,0,0,0,0,0,0};
-uint8_t patternPlayer3[10] = {1,0,1,0,1,0,0,0,0,0};
-uint8_t patternPlayer4[10] = {1,0,1,0,1,0,1,0,0,0};
-
-//Variable to hold the current pattern selected by the host
-uint8_t patternCurrent[10] = {0,0,0,0,0,0,0,0,0,0};
 
 //Setup Button Debouncing
 Bounce joystickUP = Bounce(pinUP, MILLIDEBOUNCE);
@@ -86,6 +100,9 @@ Bounce button7 = Bounce(pinB7, MILLIDEBOUNCE);
 Bounce button8 = Bounce(pinB8, MILLIDEBOUNCE);
 Bounce buttonSTART = Bounce(pinST, MILLIDEBOUNCE);
 Bounce buttonSELECT = Bounce(pinSL, MILLIDEBOUNCE);
+
+//Initiate the xinput class and setup the LED pin
+XINPUT controller(LED_ENABLED, pinOBLED);
 
 //void Configure Inputs and Outputs
 void setupPins()
@@ -114,7 +131,7 @@ void setupPins()
 //Update the debounced button statuses
 //We are looking for falling edges since the boards are built
 //for common ground sticks
-void buttonUpdate()
+void buttonRead()
 {
   if (joystickUP.update()) {buttonStatus[POSUP] = joystickUP.fallingEdge();}
   if (joystickDOWN.update()) {buttonStatus[POSDN] = joystickDOWN.fallingEdge();}
@@ -143,143 +160,35 @@ void buttonUpdate()
 //A  B  RT  LT
 void processInputs()
 {
-  //Zero out button values
-  //Start at 2 so that you can keep the message type and packet size
-  //Then fill the rest with 0x00's
-  for (int i=2; i<13; i++) {TXData[i] = 0x00;}
-  
-  //Button Packet 1 (usb data array position 2)
-  //SOCD cleaner included
-  //Programmed behavior is UP+DOWN=UP and LEFT+RIGHT=NEUTRAL
-  //DPAD Up
-  if (buttonStatus[POSUP]) {TXData[BUTTON_PACKET_1] |= DPAD_UP_MASK;}
-  //DPAD Down
-  if (buttonStatus[POSDN] && !buttonStatus[POSUP]) {TXData[BUTTON_PACKET_1] |= DPAD_DOWN_MASK;}
-  //DPAD Left
-  if (buttonStatus[POSLT] && !buttonStatus[POSRT]) {TXData[BUTTON_PACKET_1] |= DPAD_LEFT_MASK;}
-  //DPAD Right
-  if (buttonStatus[POSRT] && !buttonStatus[POSLT]) {TXData[BUTTON_PACKET_1] |= DPAD_RIGHT_MASK;}
-  
-  //Button Start OR Select OR Both (XBOX Logo)
-  if (buttonStatus[POSST]&&buttonStatus[POSSL]) {TXData[BUTTON_PACKET_2] |= LOGO_MASK;}
-  else if (buttonStatus[POSST]) {TXData[BUTTON_PACKET_1] |= START_MASK;}
-  else if (buttonStatus[POSSL]) {TXData[BUTTON_PACKET_1] |= BACK_MASK;}
-  
-  //Button Packet 2 (usb data array position 3)
-  //Button 1
-  if (buttonStatus[POSB1]) {TXData[BUTTON_PACKET_2] |= A_MASK;}
-  //Button 2
-  if (buttonStatus[POSB2]) {TXData[BUTTON_PACKET_2] |= B_MASK;}
-  //Button 5
-  if (buttonStatus[POSB5]) {TXData[BUTTON_PACKET_2] |= X_MASK;}
-  //Button 6
-  if (buttonStatus[POSB6]) {TXData[BUTTON_PACKET_2] |= Y_MASK;}
-  //Button 7
-  if (buttonStatus[POSB7]) {TXData[BUTTON_PACKET_2] |= RB_MASK;}
-  //Button 8
-  if (buttonStatus[POSB8]) {TXData[BUTTON_PACKET_2] |= LB_MASK;}
-  
-  //Triggers (usb data array position 4 and 5)
-  //0xFF is full scale
-  //Button 3
-  if (buttonStatus[POSB3]) {TXData[LEFT_TRIGGER_PACKET] = 0xFF;}
-  //Button 4
-  if (buttonStatus[POSB4]) {TXData[RIGHT_TRIGGER_PACKET] = 0xFF;}
-}
+  //Update the DPAD
+	controller.dpadUpdate(buttonStatus[POSUP], buttonStatus[POSDN], buttonStatus[POSLT], buttonStatus[POSRT]);
 
-//Select pattern
-//Examines USB packet and sets the correct pattern
-//according to the 3rd byte
-/*
-Process the LED Pattern
-0x00 OFF
-0x01 All Blinking
-0x02 1 Flashes, then on
-0x03 2 Flashes, then on
-0x04 3 Flashes, then on
-0x05 4 Flashes, then on
-0x06 1 on
-0x07 2 on
-0x08 3 on
-0x09 4 on
-0x0A Rotating (1-2-4-3)
-0x0B Blinking*
-0x0C Slow Blinking*
-0x0D Alternating (1+4-2+3)*
-*Does Pattern and then goes back to previous
-*/
-void LEDPatternSelect()
-{
-	//All blinking or rotating
-	if((RXData[2]==ALLBLINKING)||(RXData[2]==ROTATING))
-	{
-		//Copy the pattern array into the current pattern
-		memcpy(patternCurrent, patternBlinkRotate, 10);
-		//Reset the index to beginning of pattern
-		LEDtracker = 0;	
-	}
-	//Device is player 1
-	else if ((RXData[2]==FLASHON1)||(RXData[2]==ON1))
-	{
-		//Copy the pattern array into the current pattern
-		memcpy(patternCurrent, patternPlayer1, 10);
-		//Reset the index to beginning of pattern
-		LEDtracker = 0;
-	}
-	//Device is player 2
-	else if ((RXData[2]==FLASHON2)||(RXData[2]==ON2))
-	{
-		//Copy the pattern array into the current pattern
-		memcpy(patternCurrent, patternPlayer2, 10);
-		//Reset the index to beginning of pattern
-		LEDtracker = 0;
-	}
-	//Device is player 3
-	else if ((RXData[2]==FLASHON3)||(RXData[2]==ON3))
-	{
-		//Copy the pattern array into the current pattern
-		memcpy(patternCurrent, patternPlayer3, 10);
-		//Reset the index to beginning of pattern
-		LEDtracker = 0;
-	}
-	//Device is player 4
-	else if ((RXData[2]==FLASHON4)||(RXData[2]==ON4))
-	{
-		//Copy the pattern array into the current pattern
-		memcpy(patternCurrent, patternPlayer4, 10);
-		//Reset the index to beginning of pattern
-		LEDtracker = 0;
-	}
-	//If pattern is not specified perform no pattern
-	else
-	{
-		//Copy the pattern array into the current pattern
-		memcpy(patternCurrent, patternAllOff, 10);
-		//Pattern is all 0's so we don't care where LEDtracker is at
-	}
-}
+  //XBOX LOGO
+  if (buttonStatus[POSST]&&buttonStatus[POSSL]){controller.buttonUpdate(BUTTON_LOGO, 1);}
+  else if (buttonStatus[POSST]){controller.buttonUpdate(BUTTON_START, 1);}
+  else if (buttonStatus[POSSL]){controller.buttonUpdate(BUTTON_BACK, 1);}
+  else {controller.buttonUpdate(BUTTON_LOGO, 0); controller.buttonUpdate(BUTTON_START, 0); controller.buttonUpdate(BUTTON_BACK, 0);}
 
-//Cycle through the LED pattern
-void LEDPatternDisplay(void)
-{
-	//Grab the current time in mS that the program has been running
-	uint32_t currentMS = millis();
-	
-	//subtract the previous update time from the current time and see if interval has passed
-	if ((currentMS - previousMS)>interval)
-	{
-		//Set the led state correctly according to next part of pattern
-		LEDState = patternCurrent[LEDtracker];
-		//update the previous time
-		previousMS = currentMS;
-		//increment the pattern tracker
-		LEDtracker++;
-		//write the state to the led
-		digitalWrite(pinOBLED, LEDState);
-	}
-	
-	//if we increased ledtracker to 10, it needs to rollover
-	if (LEDtracker==10) {LEDtracker=0;}
+  //Buttons
+  if (buttonStatus[POSB1]) {controller.buttonUpdate(BUTTON_A, 1);}
+  else  {controller.buttonUpdate(BUTTON_A, 0);}
+  if (buttonStatus[POSB2]) {controller.buttonUpdate(BUTTON_B, 1);}
+  else {controller.buttonUpdate(BUTTON_B, 0);}
+  if (buttonStatus[POSB5]) {controller.buttonUpdate(BUTTON_X, 1);}
+  else {controller.buttonUpdate(BUTTON_X, 0);}
+  if (buttonStatus[POSB6]) {controller.buttonUpdate(BUTTON_Y, 1);}
+  else {controller.buttonUpdate(BUTTON_Y, 0);}
+  if (buttonStatus[POSB7]) {controller.buttonUpdate(BUTTON_RB, 1);}
+  else {controller.buttonUpdate(BUTTON_RB, 0);}
+  if (buttonStatus[POSB8]) {controller.buttonUpdate(BUTTON_LB, 1);}
+  else {controller.buttonUpdate(BUTTON_LB, 0);}
+
+  //Triggers
+  uint8_t leftTrigger = 0;
+  uint8_t rightTrigger = 0;
+  if (buttonStatus[POSB3]) {leftTrigger = 0xFF;}
+  if (buttonStatus[POSB4]) {rightTrigger = 0xFF;}
+  controller.triggerUpdate(leftTrigger, rightTrigger);
 }
 
 //Setup
@@ -291,7 +200,7 @@ void setup()
 void loop() 
 {
   //Poll Buttons
-  buttonUpdate();
+  buttonRead();
   
   //Process all inputs and load up the usbData registers correctly
   processInputs();
@@ -299,28 +208,15 @@ void loop()
   //Check for bootloader jump
   if (buttonStatus[POSUP] & buttonStatus[POSB1] & buttonStatus[POSB5] & buttonStatus[POSST] & buttonStatus[POSSL])
   {
-    _reboot_Teensyduino_();
+    controller.bootloaderJump();
   }
-  
-  //Update Buttons
-  XInput.send(TXData, USB_TIMEOUT);
-  
-  //Check if packet available and parse to see if its an LED pattern packet
-  if (XInput.available() > 0)
-  {
-    //Grab packet and store it in RXData array
-    XInput.recv(RXData, USB_TIMEOUT);
-    
-    //If the data is an LED pattern command parse it
-    if(RXData[0] == 1)
-    {
-      LEDPatternSelect();
-    }
-  }
-  
-  //Process the LED pattern if the style is onboard LED
-  if (LEDSTYLE == ONBOARD_LED)
-  {
-    LEDPatternDisplay();
-  }
+
+  //Update the LED display
+  controller.LEDUpdate();
+
+  //Send data
+  controller.sendXinput();
+
+  //Receive data
+  controller.receiveXinput();
 }
